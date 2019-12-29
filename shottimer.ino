@@ -46,14 +46,14 @@ v1.005.003 - change tsic libraray
 #include <Arduino.h>
 //#include <Wire.h>
 #include "Display.h"
-#include "TSIC.h" // https://github.com/Schm1tz1/arduino-tsic
+#include "Sensor.h"
 
 // comment in for use with relais
 //#include <Bounce.h>
 
 // setup for the tsic sensors on pin 2 and 3
-TSIC groupSensor(2);    // only Signalpin, VCCpin unused by default
-TSIC boilerSensor(3);    // only Signalpin, VCCpin unused by default
+Sensor groupSensor(2);   // only Signalpin, VCCpin unused by default
+Sensor boilerSensor(3);  // only Signalpin, VCCpin unused by default
 
 Display display;
 
@@ -63,7 +63,6 @@ const int btnSTARTpin = 5;
 
 // define pin => connect to IRLIZ44N (GATE) with PWM
 int baristaLightPWM = 6;
-
 
 // define how long the last shot-time will be shown
 int showLastShot = 1000; // 500 => 5s; 1000 => 10s
@@ -88,68 +87,14 @@ float TIME;
 int firstTIME;
 int secondTIME;
 
-// sensors
-enum class Mode {
+
+enum class Configuration {
   None = 0,
   GroupOnly = 1,
   BoilerOnly = 2,
   Both = 3
 };
-Mode checkTemp = Mode::None;
-
-struct SensorData {
-  static const int maxValues = 10;
-  uint16_t values[maxValues];      // the readings from the analog input
-  unsigned int currentIndex = 0;              // the index of the current reading
-  int total = 0;
-  uint16_t previousValue = 0;
-  unsigned int errorCount = 0;
-  float temperatureValue = 0;
-
-  uint16_t GetCurrentValue() const { return values[currentIndex]; }
-
-  void reset() {
-    for(auto& value : values) value = 0;    
-  }
-};
-
-SensorData groupData;
-SensorData boilerData;
-
-void getTemperature(TSIC& sensor, SensorData &sensorData) {
-  uint16_t data = 0;
-
-  if(sensor.getTemperature(&data)) {
-    auto tmp = data;
-    int r = tmp - sensorData.previousValue;
-    if( r < 0) {
-      r = -r;
-    }
-    
-    if (r < 50 || sensorData.errorCount >= 5) {
-      sensorData.previousValue = tmp;
-      sensorData.errorCount = 0;
-    }
-    else{
-      tmp = sensorData.previousValue;
-      sensorData.errorCount++;
-    }
-    
-    sensorData.total -= sensorData.GetCurrentValue();
-    sensorData.values[sensorData.currentIndex] = tmp;  
-    sensorData.total += sensorData.GetCurrentValue();
-    
-    ++sensorData.currentIndex;
-    
-    if (sensorData.currentIndex >= SensorData::maxValues) {
-      sensorData.currentIndex = 0;
-    }
-    
-    data = sensorData.total / SensorData::maxValues;
-  }
-  
-  sensorData.temperatureValue = sensor.calc_Celsius(&data);
-}
+Configuration configuration = Configuration::None;
 
 bool requestT;
 bool prepareTemp = true;
@@ -178,33 +123,15 @@ void setup() {
   delay(3000);
 
   // check if temperature sensor tsic is connected runs only once
-  uint16_t dummyData = 0;
-  groupSensor.getTemperature(&dummyData);
-  auto dummyTemperature = groupSensor.calc_Celsius(&dummyData);
-  Serial.println(dummyData);
-  Serial.println(dummyTemperature);
-  bool useGroupSensor = dummyTemperature > 0;
-  
-  dummyData = 0;
-  boilerSensor.getTemperature(&dummyData);
-  dummyTemperature = boilerSensor.calc_Celsius(&dummyData);  
-  Serial.println(dummyData);
-  Serial.println(dummyTemperature);
-  bool useBoilerSensor = dummyTemperature > 0;
-  
-  if (useGroupSensor && useBoilerSensor > 0) {
-    checkTemp = Mode::Both;
+  if (groupSensor.IsConnected() && boilerSensor.IsConnected()) {
+    configuration = Configuration::Both;
   }
-  else if (useGroupSensor) {
-    checkTemp = Mode::GroupOnly;
+  else if (groupSensor.IsConnected()) {
+    configuration = Configuration::GroupOnly;
   }
-  else if (useBoilerSensor > 0){
-    checkTemp = Mode::BoilerOnly;
+  else if (boilerSensor.IsConnected()) {
+    configuration = Configuration::BoilerOnly;
   }
-
-  // reset groupTemperatureData data
-  groupData.reset();
-  boilerData.reset();
 }
 
 void loop() {
@@ -303,51 +230,51 @@ void loop() {
     }
   }
   // get and display temperature runs only if tsic is present on startup
-  if (checkTemp != Mode::None && !timerRUN && !klick1 && !hold) {
+  if (configuration != Configuration::None && !timerRUN && !klick1 && !hold) {
     if ( requestT) {
       requestT = 0;
     }
     if (!requestT && tcount >= 20000) {
       requestT = 1;
       tcount = 0;
- 
-      
-      if(checkTemp == Mode::Both){
-        getTemperature(groupSensor, groupData);
-        getTemperature(boilerSensor, boilerData);
-        display.DrawBothTemperatures(groupData.temperatureValue, boilerData.temperatureValue);
+
+      if(configuration == Configuration::Both){
+        groupSensor.ReadNext();
+        boilerSensor.ReadNext();
+        display.DrawBothTemperatures(groupSensor.GetValue(), boilerSensor.GetValue());
       }
-      else if( checkTemp == Mode::BoilerOnly){
-        getTemperature(boilerSensor, boilerData);
-        display.DrawBoilerTemperature(boilerData.temperatureValue);
+      else if (configuration == Configuration::BoilerOnly){
+        boilerSensor.ReadNext();
+        display.DrawBoilerTemperature(boilerSensor.GetValue());
       }
       else{
-        getTemperature(groupSensor, groupData);
-        display.DrawGroupTemperature(groupData.temperatureValue);
+        groupSensor.ReadNext();
+        display.DrawGroupTemperature(groupSensor.GetValue());
       }
 
       Serial.print(" group temperature: ");
-      Serial.print(groupData.temperatureValue);
+      Serial.print(groupSensor.GetValue());
       Serial.print(" raw1: ");
-      Serial.print(groupData.GetCurrentValue());
+      Serial.print(groupSensor.GetRawValue());
       Serial.print("-");
-//      Serial.print(tmp);
+      //Serial.print(tmp);
       Serial.print("-");
-      Serial.print(groupData.previousValue);
+      Serial.print(groupSensor.previousValue);
       Serial.print("  boiler temperature: ");
-      Serial.print(boilerData.temperatureValue);   
+      Serial.print(boilerSensor.GetValue());
       Serial.print(" raw2: ");
-      Serial.print(boilerData.GetCurrentValue());
+      Serial.print(boilerSensor.GetRawValue());
       Serial.print("-");
-      Serial.print(boilerData.previousValue); 
+      Serial.print(boilerSensor.previousValue); 
       Serial.print("-");
-      Serial.print(boilerData.errorCount);
+      Serial.print(boilerSensor.errorCount);
       Serial.print("-");
-      Serial.println(static_cast<int>(checkTemp));
+      Serial.println(static_cast<int>(configuration));
     }                   
 
     tcount++;
   }
+  
   if (turnLightOn && !IsLightOn) {
     // turn BaristaLight on
     IsLightOn = true;
@@ -358,6 +285,7 @@ void loop() {
     }
     turnOffDelay = 0;
   }
+  
   if (IsLightOn) {
     if ( dimm < brightness) {
       unsigned long current = millis();
@@ -368,6 +296,7 @@ void loop() {
     }
     analogWrite(baristaLightPWM, dimm);
   }
+  
   if (turnLightOff && !IsLightOff && dimm == brightness) {
     // turn BaristaLight off
     turnLightOn = false;
@@ -375,6 +304,7 @@ void loop() {
     IsLightOff = true;
     turnOffDelay = millis();
   }
+  
   if (IsLightOff) {
     unsigned long current = millis();
 
@@ -393,8 +323,6 @@ void loop() {
     }
   }
 }
-
-
 
 void zeitLaeuft() {
   count++;
