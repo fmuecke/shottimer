@@ -191,10 +191,10 @@ void loop() {
     }
     
     if (firstTIME != 0 && isSecondTime) {
-      display.DrawPI(5, 0, firstTIME);
+      display.DrawPreInfusion(5, 0, firstTIME);
     }
     if (TIME > 0 && isThirdTime ) {
-      display.DrawPI(70, 0, TIME);
+      display.DrawPreInfusion(70, 0, TIME);
     }
   }
   

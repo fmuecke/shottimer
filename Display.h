@@ -84,7 +84,7 @@ struct Display {
         _lcd.print("^  ");
 	}
 
-	void DrawPI(int x, int y, int time) {
+	void DrawPreInfusion(int x, int y, int time) {
 		_lcd.setFontSize(FONT_SIZE_MEDIUM);
 		_lcd.setCursor(x, y);
 		_lcd.print("PI: ");
