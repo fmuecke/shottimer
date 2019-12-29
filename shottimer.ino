@@ -51,11 +51,11 @@ v1.005.003 - change tsic libraray
 // comment in for use with relais
 //#include <Bounce.h>
 
+Display display; // LCD display wrapper
+
 // setup for the tsic sensors on pin 2 and 3
 Sensor groupSensor(2);   // only Signalpin, VCCpin unused by default
 Sensor boilerSensor(3);  // only Signalpin, VCCpin unused by default
-
-Display display;
 
 // define signal input
 const int btnPUMPpin = 7;
@@ -72,18 +72,17 @@ int count = 0;
 int tcount = 0;
 bool timerRUN = false;
 bool sleeptimerRUN = false;
-bool sleep = true;
-bool hold = true;
+bool isSleep = true;
+bool isHold = true;
 const char* version[] = {"Espresso", "Shot Timer", "v1.006.045"};
 long previous;
-long onTIME;
+//long onTIME;
 
+bool isSecondTime = false;
+bool isFirstTime = false;
+bool isThirdTime = false;
 
-bool getSecondTime = false;
-bool getFirstTime = false;
-bool getThirdTime = false;
-
-float TIME;
+float timerValue;
 int firstTIME;
 int secondTIME;
 
@@ -151,12 +150,12 @@ void loop() {
       // set variable
       timerRUN = true;
       count = 0;
-      TIME = 0;
+      timerValue = 0;
       firstTIME = 0;
       secondTIME = 0;
-      sleep = false;
+      isSleep = false;
       sleeptimerRUN = false;
-      hold = true;
+      isHold = true;
       turnLightOn = true;
     }
   }
@@ -165,72 +164,79 @@ void loop() {
   if (timerRUN && klick1) {
     float countF = count;
     int TIME = countF / 100;
-    // get first time
-    if (!getFirstTime) {
-      getFirstTime = true;
+    
+	// get first time
+    if (!isFirstTime) {
+      isFirstTime = true;
     }
-    // get second time
-    if (klick1 && klick2 && !getSecondTime) {
+    
+	// get second time
+    if (klick1 && klick2 && !isSecondTime) {
       firstTIME = TIME;
-      getSecondTime = true;
+      isSecondTime = true;
       count = 0;
     }
-    // get third time
-    if (getFirstTime && getSecondTime && !getThirdTime && !klick2) {
+    
+	// get third time
+    if (isFirstTime && isSecondTime && !isThirdTime && !klick2) {
       secondTIME = TIME;
       TIME = 0;
       count = 0;
-      getThirdTime = true;
+      isThirdTime = true;
     }
-    // seven segment
-    if (!getThirdTime) {
+    
+	// seven segment
+    if (!isThirdTime) {
       display.DrawTimer(TIME);
     }
     
-    if (firstTIME != 0 && getSecondTime) {
+    if (firstTIME != 0 && isSecondTime) {
       display.DrawPI(5, 0, firstTIME);
     }
-    if (TIME > 0 && getThirdTime ) {
+    if (TIME > 0 && isThirdTime ) {
       display.DrawPI(70, 0, TIME);
     }
   }
+  
   // no active signal
   if (timerRUN && !klick1) {
     MsTimer2::stop();
     float countF = count;
-    TIME = countF / 100;
+    timerValue = countF / 100;
     timerRUN = false;
-    sleep = true;
+    isSleep = true;
     count = 0;
     //      tcount = 0;
-    getFirstTime = false;
-    getSecondTime = false;
-    getThirdTime = false;
+    isFirstTime = false;
+    isSecondTime = false;
+    isThirdTime = false;
   }
-  if (sleep) {
+
+  if (isSleep) {
     if (!sleeptimerRUN) {
       MsTimer2::set(10, Tick);
       MsTimer2::start();
       sleeptimerRUN = true;
     }
   }
-  if (sleep && sleeptimerRUN) {
-    if ((count > showLastShot) || ((TIME + firstTIME + secondTIME) < 8)) {
+
+  if (isSleep && sleeptimerRUN) {
+    if ((count > showLastShot) || ((timerValue + firstTIME + secondTIME) < 8)) {
       MsTimer2::stop();
       display.Clear();
       sleeptimerRUN = false;
       count = 0;
-      sleep = false;
-      hold = false;
+      isSleep = false;
+      isHold = false;
       turnLightOff = true;
-      getFirstTime = false;
-      getSecondTime = false;
-      getThirdTime = false;
+      isFirstTime = false;
+      isSecondTime = false;
+      isThirdTime = false;
       requestT = 1;
     }
   }
   // get and display temperature runs only if tsic is present on startup
-  if (configuration != Configuration::None && !timerRUN && !klick1 && !hold) {
+  if (configuration != Configuration::None && !timerRUN && !klick1 && !isHold) {
     if ( requestT) {
       requestT = 0;
     }
@@ -317,7 +323,7 @@ void loop() {
         }
       }
       if (dimm < 10) {
-        hold = false;
+        isHold = false;
       }
       analogWrite(baristaLightPWM, dimm);
     }
