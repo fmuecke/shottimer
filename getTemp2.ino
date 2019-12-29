@@ -1,7 +1,7 @@
 void getTemp2(){
   
-  if(Sensor2.getTemperature(&temperature2)){
-   uint16_t tmp2 = temperature2;
+  if(Sensor2.getTemperature(&boilerTemperatureData)){
+   uint16_t tmp2 = boilerTemperatureData;
 
   int r2 = tmp2 - previousTMP2;
   if( r2 < 0){
@@ -31,9 +31,8 @@ void getTemp2(){
    readIndex2 = 0;
   }
 
-  temperature2 = total2 / numReadings;
+  boilerTemperatureData = total2 / numReadings;
    }
-  TEMP2 = Sensor2.calc_Celsius(&temperature2);
+  boilerTemperature = Sensor2.calc_Celsius(&boilerTemperatureData);
 
 }
-
