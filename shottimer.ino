@@ -109,18 +109,18 @@ int showLastShot = 1000; // 500 => 5s; 1000 => 10s
 // define global variables
 int count = 0;
 int tcount = 0;
-bool timerRUN = 0;
-bool sleeptimerRUN = 0;
-bool sleep = 1;
-bool hold = 1;
+bool timerRUN = false;
+bool sleeptimerRUN = false;
+bool sleep = true;
+bool hold = true;
 char* version[] = {"Espresso", "Shot Timer", "v1.006.045"};
 long previous;
 long onTIME;
 
 
-bool getSecondTime = 0;
-bool getFirstTime = 0;
-bool getThirdTime = 0;
+bool getSecondTime = false;
+bool getFirstTime = false;
+bool getThirdTime = false;
 
 bool lcdclear = 0;
 
@@ -163,17 +163,15 @@ bool prepareTemp = true;
 
 
 // light
-bool turnLightOn = 0;
-bool LightIsOn = 0;
-bool turnLightOff = 0;
-bool LightIsOff = 0;
+bool turnLightOn = false;
+bool IsLightOn = false;
+bool turnLightOff = false;
+bool IsLightOff = false;
 int dimm = 0;
 int brightness = 200; // 255 => max 127 => 50%
 unsigned long turnOffDelay;
 
 // display
-bool StartScreen = 1;
-
 
 void setup() {
     //Serial.begin(9600);
@@ -240,16 +238,15 @@ void loop() {
       // reset lcd
       lcd.clear();
       // set variable
-      timerRUN = 1;
+      timerRUN = true;
       count = 0;
       TIME = 0;
       firstTIME = 0;
       secondTIME = 0;
-      sleep = 0;
-      sleeptimerRUN = 0;
-      hold = 1;
-      turnLightOn = 1;
-      StartScreen = 0;
+      sleep = false;
+      sleeptimerRUN = false;
+      hold = true;
+      turnLightOn = true;
     }
   }
 
@@ -259,12 +256,12 @@ void loop() {
     int TIME = countF / 100;
     // get first time
     if (!getFirstTime) {
-      getFirstTime = 1;
+      getFirstTime = true;
     }
     // get second time
     if (klick1 && klick2 && !getSecondTime) {
       firstTIME = TIME;
-      getSecondTime = 1;
+      getSecondTime = true;
       count = 0;
     }
     // get third time
@@ -272,7 +269,7 @@ void loop() {
       secondTIME = TIME;
       TIME = 0;
       count = 0;
-      getThirdTime = 1;
+      getThirdTime = true;
     }
     // seven segment
     if (!getThirdTime) {
@@ -298,33 +295,33 @@ void loop() {
     MsTimer2::stop();
     float countF = count;
     TIME = countF / 100;
-    timerRUN = 0;
-    sleep = 1;
+    timerRUN = false;
+    sleep = true;
     count = 0;
     //      tcount = 0;
-    getFirstTime = 0;
-    getSecondTime = 0;
-    getThirdTime = 0;
+    getFirstTime = false;
+    getSecondTime = false;
+    getThirdTime = false;
   }
   if (sleep) {
     if (!sleeptimerRUN) {
       MsTimer2::set(10, zeitLaeuft);
       MsTimer2::start();
-      sleeptimerRUN = 1;
+      sleeptimerRUN = true;
     }
   }
   if (sleep && sleeptimerRUN) {
     if ((count > showLastShot) || ((TIME + firstTIME + secondTIME) < 8)) {
       MsTimer2::stop();
       lcd.clear();
-      sleeptimerRUN = 0;
+      sleeptimerRUN = false;
       count = 0;
-      sleep = 0;
-      hold = 0;
-      turnLightOff = 1;
-      getFirstTime = 0;
-      getSecondTime = 0;
-      getThirdTime = 0;
+      sleep = false;
+      hold = false;
+      turnLightOff = true;
+      getFirstTime = false;
+      getSecondTime = false;
+      getThirdTime = false;
       requestT = 1;
     }
   }
@@ -400,17 +397,17 @@ void loop() {
 
     tcount++;
   }
-  if (turnLightOn && !LightIsOn) {
+  if (turnLightOn && !IsLightOn) {
     // turn BaristaLight on
-    LightIsOn = 1;
-    LightIsOff = 0;
-    turnLightOff = 0;
+    IsLightOn = true;
+    IsLightOff = false;
+    turnLightOff = false;
     if (dimm < 100) {
       dimm = 100;
     }
     turnOffDelay = 0;
   }
-  if (LightIsOn) {
+  if (IsLightOn) {
     if ( dimm < brightness) {
       unsigned long current = millis();
       if (current - previous > 10) {
@@ -420,14 +417,14 @@ void loop() {
     }
     analogWrite(baristaLightPWM, dimm);
   }
-  if (turnLightOff && !LightIsOff && dimm == brightness) {
+  if (turnLightOff && !IsLightOff && dimm == brightness) {
     // turn BaristaLight off
-    turnLightOn = 0;
-    LightIsOn = 0;
-    LightIsOff = 1;
+    turnLightOn = false;
+    IsLightOn = false;
+    IsLightOff = true;
     turnOffDelay = millis();
   }
-  if (LightIsOff) {
+  if (IsLightOff) {
     unsigned long current = millis();
 
     if (current - turnOffDelay > 90000) {
@@ -439,7 +436,7 @@ void loop() {
         }
       }
       if (dimm < 10) {
-        hold = 0;
+        hold = false;
       }
       analogWrite(baristaLightPWM, dimm);
     }
