@@ -144,7 +144,7 @@ void loop() {
   // active signal on P1 start timer
   if (klick1) {
     if (!timerRUN) {
-      MsTimer2::set(10, zeitLaeuft);
+      MsTimer2::set(10, Tick);
       MsTimer2::start();
       // reset lcd
       display.Clear();
@@ -209,7 +209,7 @@ void loop() {
   }
   if (sleep) {
     if (!sleeptimerRUN) {
-      MsTimer2::set(10, zeitLaeuft);
+      MsTimer2::set(10, Tick);
       MsTimer2::start();
       sleeptimerRUN = true;
     }
@@ -324,6 +324,6 @@ void loop() {
   }
 }
 
-void zeitLaeuft() {
+void Tick() {
   count++;
 }
