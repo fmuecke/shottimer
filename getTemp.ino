@@ -1,5 +1,5 @@
 void getTemp(){
-   if(Sensor1.getTemperature(&groupTemperatureData)){
+   if(groupSensor.getTemperature(&groupTemperatureData)){
    uint16_t tmp = groupTemperatureData;
    
   int r = tmp - previousTMP;
@@ -27,5 +27,5 @@ void getTemp(){
 
   groupTemperatureData = total / numReadings;
    }
-   groupTemperature = Sensor1.calc_Celsius(&groupTemperatureData);
+   groupTemperature = groupSensor.calc_Celsius(&groupTemperatureData);
 }

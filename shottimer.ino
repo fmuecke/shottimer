@@ -86,11 +86,9 @@ const PROGMEM uint8_t digits[][256] = {
   } // 9
 };
 
-// setup for the tsic sensor on pin 2
-//TSIC Sensor1(2, 3); // Signalpin, VCCpin,
-TSIC Sensor1(2);    // only Signalpin, VCCpin unused by default
-TSIC Sensor2(3);    // only Signalpin, VCCpin unused by default
-
+// setup for the tsic sensors on pin 2 and 3
+TSIC groupSensor(2);    // only Signalpin, VCCpin unused by default
+TSIC boilerSensor(3);    // only Signalpin, VCCpin unused by default
 
 //OLED on I2C-bus
 LCD_SSD1306 lcd;
@@ -201,13 +199,13 @@ void setup() {
 
   //check if temperature sensor tsic is connected runs only once
  
-    Sensor1.getTemperature(&groupTemperatureData);
+    groupSensor.getTemperature(&groupTemperatureData);
               Serial.println(groupTemperatureData);
-    groupTemperature = Sensor1.calc_Celsius(&groupTemperatureData);  
+    groupTemperature = groupSensor.calc_Celsius(&groupTemperatureData);  
           Serial.println(groupTemperature);
-    Sensor2.getTemperature(&boilerTemperatureData);
+    boilerSensor.getTemperature(&boilerTemperatureData);
           Serial.println(boilerTemperatureData);
-    boilerTemperature = Sensor2.calc_Celsius(&boilerTemperatureData);  
+    boilerTemperature = boilerSensor.calc_Celsius(&boilerTemperatureData);  
           Serial.println(boilerTemperature);          
     
     if (groupTemperature > 0 && boilerTemperature > 0) {
