@@ -209,14 +209,10 @@ void setup() {
     if (TEMP2 > 0){
       checkTemp = checkTemp + 2;
     }
-     for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings[thisReading] = 0;
-  }
 
-     for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings2[thisReading] = 0;
-  }
-
+  // reset temperature data
+  for(auto& reading : readings) reading = 0;
+  for(auto& reading : readings2) reading = 0;
 }
 
 void loop() {
