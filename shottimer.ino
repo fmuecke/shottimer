@@ -133,34 +133,62 @@ enum class Mode {
 };
 Mode checkTemp = Mode::None;
 
-// sensor 1
-float groupTemperature = 0;
-uint16_t groupTemperatureData = 0;
-//uint16_t tmp = 0;
-uint16_t previousTMP = 0;
+struct SensorData {
+  static const int maxValues = 10;
+  uint16_t values[maxValues];      // the readings from the analog input
+  unsigned int currentIndex = 0;              // the index of the current reading
+  int total = 0;
+  uint16_t previousValue = 0;
+  unsigned int errorCount = 0;
+  float temperatureValue = 0;
 
-const int numReadings = 10;
+  uint16_t GetCurrentValue() const { return values[currentIndex]; }
 
-int readings[numReadings];      // the readings from the analog input
-int readings2[numReadings];      // the readings from the analog input
-int readIndex = 0;              // the index of the current reading
-int readIndex2 = 0;    
-int total = 0;                  // the running total
-int total2 = 0; 
-int error = 0;
-int error2 = 0;
+  void reset() {
+    for(auto& value : values) value = 0;    
+  }
+};
 
+SensorData groupData;
+SensorData boilerData;
 
+void getTemperature(TSIC& sensor, SensorData &sensorData) {
+  uint16_t data = 0;
 
-float boilerTemperature = 0;
-uint16_t boilerTemperatureData = 0;
-// uint16_t tmp2 = 0;
-uint16_t previousTMP2 = 0;
-
+  if(sensor.getTemperature(&data)) {
+    auto tmp = data;
+    int r = tmp - sensorData.previousValue;
+    if( r < 0) {
+      r = -r;
+    }
+    
+    if (r < 50 || sensorData.errorCount >= 5) {
+      sensorData.previousValue = tmp;
+      sensorData.errorCount = 0;
+    }
+    else{
+      tmp = sensorData.previousValue;
+      sensorData.errorCount++;
+    }
+    
+    sensorData.total -= sensorData.GetCurrentValue();
+    sensorData.values[sensorData.currentIndex] = tmp;  
+    sensorData.total += sensorData.GetCurrentValue();
+    
+    ++sensorData.currentIndex;
+    
+    if (sensorData.currentIndex >= SensorData::maxValues) {
+      sensorData.currentIndex = 0;
+    }
+    
+    data = sensorData.total / SensorData::maxValues;
+  }
+  
+  sensorData.temperatureValue = sensor.calc_Celsius(&data);
+}
 
 bool requestT;
 bool prepareTemp = true;
-
 
 // light
 bool turnLightOn = false;
@@ -193,34 +221,37 @@ void setup() {
     lcd.setFontSize(FONT_SIZE_SMALL);
     lcd.setCursor(60, 7);
     lcd.print(version[2]);
-    
       
     delay(3000);
 
   //check if temperature sensor tsic is connected runs only once
- 
-    groupSensor.getTemperature(&groupTemperatureData);
-              Serial.println(groupTemperatureData);
-    groupTemperature = groupSensor.calc_Celsius(&groupTemperatureData);  
-          Serial.println(groupTemperature);
-    boilerSensor.getTemperature(&boilerTemperatureData);
-          Serial.println(boilerTemperatureData);
-    boilerTemperature = boilerSensor.calc_Celsius(&boilerTemperatureData);  
-          Serial.println(boilerTemperature);          
+    uint16_t dummyData = 0;
+    groupSensor.getTemperature(&dummyData);
+    Serial.println(dummyData);
+    auto dummyTemperature = groupSensor.calc_Celsius(&dummyData);
+    Serial.println(dummyTemperature);
+    bool useGroupSensor = dummyTemperature > 0;
     
-    if (groupTemperature > 0 && boilerTemperature > 0) {
+    dummyData = 0;
+    boilerSensor.getTemperature(&dummyData);
+    Serial.println(dummyData);
+    dummyTemperature = boilerSensor.calc_Celsius(&dummyData);  
+    Serial.println(dummyTemperature);
+    bool useBoilerSensor = dummyTemperature > 0;
+    
+    if (useGroupSensor && useBoilerSensor > 0) {
       checkTemp = Mode::Both;
     }
-    else if (groupTemperature > 0) {
+    else if (useGroupSensor) {
       checkTemp = Mode::GroupOnly;
     }
-    else if (boilerTemperature > 0){
+    else if (useBoilerSensor > 0){
       checkTemp = Mode::BoilerOnly;
     }
 
   // reset groupTemperatureData data
-  for(auto& reading : readings) reading = 0;
-  for(auto& reading : readings2) reading = 0;
+  groupData.reset();
+  boilerData.reset();
 }
 
 void loop() {
@@ -342,55 +373,52 @@ void loop() {
       
 
       if(checkTemp == Mode::Both){
-        getTemp();
-        getTemp2();
+        getTemperature(groupSensor, groupData);
+        getTemperature(boilerSensor, boilerData);
         lcd.setFontSize(FONT_SIZE_MEDIUM);
         lcd.setCursor(5, 2);
         lcd.print("Gruppe: ");
-        lcd.print(groupTemperature, 1);
+        lcd.print(groupData.temperatureValue, 1);
         // uses modified font "^" is replaced by "°"
         lcd.print("^  ");
         lcd.setCursor(5, 5);
         lcd.print("Kessel: ");  
-        lcd.print(boilerTemperature, 1);
+        lcd.print(boilerData.temperatureValue, 1);
         lcd.print("^  ");  
       }
       else if( checkTemp == Mode::BoilerOnly){
-        getTemp2();
+        getTemperature(boilerSensor, boilerData);
         lcd.setFontSize(FONT_SIZE_MEDIUM);
         lcd.setCursor(5, 3);
         lcd.print("Kessel: ");  
-        lcd.print(boilerTemperature, 1);
+        lcd.print(boilerData.temperatureValue, 1);
         lcd.print("^  ");   
       }
       else{
-        getTemp();
+        getTemperature(groupSensor, groupData);
         lcd.setFontSize(FONT_SIZE_MEDIUM);
         lcd.setCursor(5, 3);
         lcd.print("Gruppe: ");
-        lcd.print(groupTemperature, 1);
+        lcd.print(groupData.temperatureValue, 1);
         lcd.print("^  ");
       }
 
-
-
-      
       Serial.print(" group temperature: ");
-      Serial.print(groupTemperature);
+      Serial.print(groupData.temperatureValue);
       Serial.print(" raw1: ");
-      Serial.print(groupTemperatureData);
+      Serial.print(groupData.GetCurrentValue());
       Serial.print("-");
 //      Serial.print(tmp);
       Serial.print("-");
-      Serial.print(previousTMP);      
+      Serial.print(groupData.previousValue);
       Serial.print("  boiler temperature: ");
-      Serial.print(boilerTemperature);   
+      Serial.print(boilerData.temperatureValue);   
       Serial.print(" raw2: ");
-      Serial.print(boilerTemperatureData);
+      Serial.print(boilerData.GetCurrentValue());
       Serial.print("-");
-    Serial.print(previousTMP2); 
+      Serial.print(boilerData.previousValue); 
       Serial.print("-");
-      Serial.print(error2);
+      Serial.print(boilerData.errorCount);
       Serial.print("-");
       Serial.println(static_cast<int>(checkTemp));
     }                   
