@@ -122,16 +122,12 @@ bool getSecondTime = false;
 bool getFirstTime = false;
 bool getThirdTime = false;
 
-bool lcdclear = 0;
-
 float TIME;
 int firstTIME;
 int secondTIME;
 
-
 // sensors
 int checkTemp = 0;
-bool checkTemp2 = 0;
 
 // sensor 1
 float TEMP = 0;
