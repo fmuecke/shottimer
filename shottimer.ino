@@ -41,16 +41,15 @@ v1.005.003 - change tsic libraray
 
 */
 
-// librarys
-#include <MsTimer2.h>
+// libraries
+#include <MsTimer2.h> // https://github.com/PaulStoffregen/MsTimer2
 #include <Arduino.h>
 #include <Wire.h>
-#include <MicroLCD.h>
-#include "TSIC.h"
+#include <MicroLCD.h> // https://github.com/stanleyhuangyc/MultiLCD/tree/master/MicroLCD
+#include "TSIC.h" // https://github.com/Schm1tz1/arduino-tsic
 
 // comment in for use with relais
 //#include <Bounce.h>
-
 
 
 // 7-segemnt graphic
