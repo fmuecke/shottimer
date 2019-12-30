@@ -86,7 +86,6 @@ float timerValue;
 int firstTIME;
 int secondTIME;
 
-
 enum class Configuration {
   None = 0,
   GroupOnly = 1,
@@ -102,7 +101,6 @@ bool prepareTemp = true;
 bool turnLightOn = false;
 bool IsLightOn = false;
 bool turnLightOff = false;
-bool IsLightOff = false;
 int dimm = 0;
 int brightness = 200; // 255 => max 127 => 50%
 unsigned long turnOffDelay;
@@ -284,7 +282,6 @@ void loop() {
   if (turnLightOn && !IsLightOn) {
     // turn BaristaLight on
     IsLightOn = true;
-    IsLightOff = false;
     turnLightOff = false;
     if (dimm < 100) {
       dimm = 100;
@@ -293,7 +290,7 @@ void loop() {
   }
   
   if (IsLightOn) {
-    if ( dimm < brightness) {
+    if (dimm < brightness) {
       unsigned long current = millis();
       if (current - previous > 10) {
         previous = current;
@@ -303,15 +300,14 @@ void loop() {
     analogWrite(baristaLightPWM, dimm);
   }
   
-  if (turnLightOff && !IsLightOff && dimm == brightness) {
+  if (turnLightOff && IsLightOn && dimm == brightness) {
     // turn BaristaLight off
     turnLightOn = false;
     IsLightOn = false;
-    IsLightOff = true;
     turnOffDelay = millis();
   }
   
-  if (IsLightOff) {
+  if (!IsLightOn) {
     unsigned long current = millis();
 
     if (current - turnOffDelay > 90000) {
